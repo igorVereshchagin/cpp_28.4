@@ -4,33 +4,40 @@
 #include <map>
 #include <string>
 
+void inputCompetitors(int n, std::vector<std::pair<std::string, double>> &outCompetitors);
+void someFunc(std::pair<std::string, double> &inPair);
+void race(const std::pair<std::string, double> &competitor, );
+
+
 int main()
 {
-  std::map<std::string, double> competitors;
+  std::vector<std::pair<std::string, double>> competitors;
+
+  inputCompetitors(6, competitors);
+
   for (int i = 0; i < 6; i++)
+    someFunc(competitors[i]);
+
+  return 0;
+}
+
+
+void inputCompetitors(int n, std::vector<std::pair<std::string, double>> &outCompetitors)
+{
+  for (int i = 0; i < n; i++)
   {
     std::string name;
     double speed;
-    bool goodInput;
-    do
-    {
-      std::cout << "Competitor " << i + 1 << std::endl << "Input name: " << std::endl;
-      std::cin >> std::ws;
-      std::getline(std::cin, name);
-      if (competitors.end() != competitors.find(name))
-      {
-        std::cout << "The name is used. Try again" << std::endl;
-        goodInput = false;
-        continue;
-      }
-      else
-        goodInput = true;
-      std::cout << "Input speed: " << std::endl;
-      std::cin >> speed;
-    } while (!goodInput);
-    competitors[name] = speed;
-
+    std::cout << "Competitor " << i + 1 << std::endl << "Input name: " << std::endl;
+    std::cin >> std::ws;
+    std::getline(std::cin, name);
+    std::cout << "Input speed: " << std::endl;
+    std::cin >> speed;
+    outCompetitors.push_back(std::make_pair(name, speed));
   }
-  std::cout << "Hello, World!" << std::endl;
-  return 0;
+}
+
+void someFunc(std::pair<std::string, double> &inPair)
+{
+  std::cout << inPair.first << " " << inPair.second << std::endl;
 }
