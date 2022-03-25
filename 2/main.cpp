@@ -2,6 +2,7 @@
 #include <string>
 #include <thread>
 #include <mutex>
+#include <cassert>
 
 std::mutex stationAccess;
 std::mutex consoleAccess;
@@ -12,28 +13,33 @@ class Train
   int travelTime;
 public:
   Train(const std::string &inName,const int inTravelTime) : name(inName), travelTime(inTravelTime) {}
-  void task();
+  static void task(Train *pTrain);
 };
 
-void Train::task()
+void Train::task(Train *pTrain)
 {
-  std::this_thread::sleep_for(std::chrono::seconds(travelTime));
+  assert(pTrain != nullptr);
+  consoleAccess.lock();
+  std::cout << "Train " << pTrain->name << " started" << std::endl;
+  consoleAccess.unlock();
+  std::this_thread::sleep_for(std::chrono::seconds(pTrain->travelTime));
   if (!stationAccess.try_lock())
   {
     consoleAccess.lock();
-    std::cout << "Train " << name << " is waiting..." << std::endl;
+    std::cout << "Train " << pTrain->name << " is waiting..." << std::endl;
     consoleAccess.unlock();
-  }
-  else
     stationAccess.lock();
+  }
   consoleAccess.lock();
-  std::cout << "Train " << name << " has arrived the station." << std::endl;
+  std::cout << "Train " << pTrain->name << " has arrived the station." << std::endl;
+  consoleAccess.unlock();
   std::string cmd;
   do
   {
     std::cin >> cmd;
   }while (cmd != "depart");
-  std::cout << "Train " << name << " has departed." << std::endl;
+  consoleAccess.lock();
+  std::cout << "Train " << pTrain->name << " has departed." << std::endl;
   consoleAccess.unlock();
   stationAccess.unlock();
 }
@@ -52,7 +58,10 @@ int main()
   }
   std::thread *trainsThread[3];
   for (int i = 0; i < 3; i++)
-    trainsThread[i]=]]]]]]]]]]]]]]]  = new std::thread(&trains[i]->task);
+    trainsThread[i] = new std::thread(Train::task, trains[i]);
+
+  for (int i = 0; i < 3; i++)
+    trainsThread[i]->join();
 
   for (int i = 0; i < 3; i++)
     delete trains[i];
