@@ -33,15 +33,10 @@ std::queue<Order*> completedOrders;
 std::mutex newOrdersAccess;
 std::mutex completedOrdersAccess;
 std::mutex consoleAccess;
-std::mutex kitchenSync;
-std::mutex courierSync;
 int main()
 {
-  std::srand(std::time(nullptr));
   std::thread waiter(waiterTask);
-  std::this_thread::sleep_for(std::chrono::microseconds (1));
   std::thread kitchen(kitchenTask);
-  std::this_thread::sleep_for(std::chrono::microseconds (1));
   std::thread courier(courierTask);
   waiter.join();
   kitchen.join();
@@ -51,7 +46,7 @@ int main()
 
 void waiterTask()
 {
-  newOrdersAccess.lock();
+  std::srand(std::time(nullptr));
   int ordersCounter = 0;
   int pizzaCounter = 0;
   int soupCounter = 0;
@@ -62,14 +57,14 @@ void waiterTask()
   {
     std::this_thread::sleep_for(std::chrono::seconds((std::rand() % 5) + 5));
     Order* newOrder = new Order();
-    newOrder->type = OrderType(std::rand() % OT_max);
+    newOrder->type = OrderType((std::rand() % (OT_max - OT_min)) + OT_min);
     switch (newOrder->type)
     {
       case OT_pizza:
         newOrder->name = "Pizza #" + std::to_string(++pizzaCounter);
         break;
       case OT_soup:
-        newOrder->name = "Soup #" + std::to_string(++soupCounter);
+        newOrder->name = "Soup  #" + std::to_string(++soupCounter);
         break;
       case OT_steak:
         newOrder->name = "Steak #" + std::to_string(++steakCounter);
@@ -82,74 +77,72 @@ void waiterTask()
         break;
     }
     consoleAccess.lock();
-    std::cout << "The order: " << newOrder->name << " is accepted" << std::endl;
+    std::cout << newOrder->name << " is accepted" << std::endl;
     consoleAccess.unlock();
+    newOrdersAccess.lock();
     newOrders.push(newOrder);
     newOrder = nullptr;
     ordersCounter++;
     newOrdersAccess.unlock();
-    kitchenSync.lock();
-    newOrdersAccess.lock();
-    kitchenSync.unlock();
   }
 }
 
 void kitchenTask()
 {
-  completedOrdersAccess.lock();
-  kitchenSync.lock();
+  std::srand(std::time(nullptr));
   int ordersCounter = 0;
   Order* myOrder;
   while (ordersCounter < 10)
   {
-    newOrdersAccess.lock();
-    kitchenSync.unlock();
-    assert(!newOrders.empty());
-    myOrder = newOrders.front();
-    newOrders.pop();
-    newOrdersAccess.unlock();
-    kitchenSync.lock();
+    bool newOrderAccepted = false;
+    do
+    {
+      newOrdersAccess.lock();
+      if (!newOrders.empty())
+      {
+        myOrder = newOrders.front();
+        newOrders.pop();
+        newOrderAccepted = true;
+      }
+      newOrdersAccess.unlock();
+    }while (!newOrderAccepted);
     consoleAccess.lock();
-    std::cout << "The order: " << myOrder->name << " is on the kitchen" << std::endl;
+    std::cout << myOrder->name << " is on the kitchen" << std::endl;
     consoleAccess.unlock();
     std::this_thread::sleep_for(std::chrono::seconds((std::rand() % 10) + 5));
     consoleAccess.lock();
-    std::cout << "The order: " << myOrder->name << " is complete" << std::endl;
+    std::cout << myOrder->name << " is complete" << std::endl;
     consoleAccess.unlock();
+    completedOrdersAccess.lock();
     completedOrders.push(myOrder);
     myOrder = nullptr;
     ordersCounter++;
     completedOrdersAccess.unlock();
-    courierSync.lock();
-    completedOrdersAccess.lock();
-    courierSync.unlock();
   }
 }
 
 void courierTask()
 {
-  courierSync.lock();
+  std::srand(std::time(nullptr));
   int ordersCounter = 0;
   std::queue<Order*> myOrders;
   while (ordersCounter < 10)
   {
     std::this_thread::sleep_for(std::chrono::seconds(30));
     completedOrdersAccess.lock();
-    courierSync.unlock();
     while (!completedOrders.empty())
     {
       myOrders.push(completedOrders.front());
       completedOrders.pop();
     }
     completedOrdersAccess.unlock();
-    courierSync.lock();
 
     while (!myOrders.empty())
     {
       Order* order = myOrders.front();
       myOrders.pop();
       consoleAccess.lock();
-      std::cout << "The order: " << order->name << " is delivered" << std::endl;
+      std::cout << order->name << " is delivered" << std::endl;
       consoleAccess.unlock();
       delete order;
       ordersCounter++;
